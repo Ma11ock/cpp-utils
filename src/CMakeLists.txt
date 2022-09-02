@@ -1,7 +1,7 @@
 # ryan-cpp-utils library build file.
 
 # This file is part of ryan-cpp-utils.
-set(UTILS_LIB ${CMAKE_PROJECT_NAME})
+set(UTILS_LIB ${PROJECT_NAME})
 enable_language(C)
 enable_language(CXX)
 set(CMAKE_C_STANDARD 99)
