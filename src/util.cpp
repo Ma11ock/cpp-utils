@@ -40,14 +40,14 @@ std::string util::randomAlNumString(std::size_t len) {
 }
 
 int util::exec(const std::filesystem::path &path, const std::vector<std::string> &args) {
-    const char **argv = new const char *[args.size() + 1];
+    char **argv = new char *[args.size() + 1];
     for (std::size_t i = 0; i < args.size(); i++) {
-        argv[i] = args[i].c_str();
+        argv[i] = const_cast<char *>(args[i].c_str());
     }
     argv[args.size()] = nullptr;
 #ifdef WIN32
-    return _execv(path.c_str(), args.data());
+    return _execv(path.c_str(), argv);
 #else   // Unix
-    return execv(path.c_str(), args.data());
+    return execv(path.c_str(), argv);
 #endif  // WIN32
 }
