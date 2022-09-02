@@ -21,7 +21,7 @@ add_library(
     ${SRC_SOURCES}
 )
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
+target_include_directories(${UTILS_LIB} PUBLIC ".")
 
 if(CMAKE_BUILD_TYPE STREQUAL "debug")
   target_compile_options(${UTILS_LIB} PRIVATE
