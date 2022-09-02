@@ -14,12 +14,14 @@ using path = fs::path;
 
 static std::string errorString = "";
 
-static void setLastError() {
+static inline std::string &setLastError() {
 #ifdef WIN32
     auto errorId = GetLastError();
     if (errId == 0) {
         goto get_error_unix;
     }
+
+    errorStringNo = errId;
 
     LPSTR messageBuffer = nullptr;
 
@@ -28,14 +30,16 @@ static void setLastError() {
         nullptr, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
         static_cast<LPSTR>(&messageBuffer), 0, nullptr);
 
-    errorString = std::string(messageBuffer, size);
+    errorString = fmt::format("(error id {}:{})", errorId, std::string_view(messageBuffer, size));
 
     LocalFree(messageBuffer);
 
+    return errorString;
+
 get_error_unix:
 #endif  // WIN32
-
-    errorString = std::strerror(errno);
+    errorString = fmt::format("(error id {}:{})", errno, std::strerror(errno));
+    return errorString;
 }
 
 path util::mkTmp(std::string_view prefix, std::string_view suffix) {
@@ -68,7 +72,7 @@ std::string util::randomAlNumString(std::size_t len) {
     return result;
 }
 
-int util::exec(const std::filesystem::path &path, const std::vector<std::string> &args) {
+std::string util::exec(const std::filesystem::path &path, const std::vector<std::string> &args) {
     char **argv = new char *[args.size() + 1];
     for (std::size_t i = 0; i < args.size(); i++) {
         argv[i] = const_cast<char *>(args[i].c_str());
@@ -76,20 +80,20 @@ int util::exec(const std::filesystem::path &path, const std::vector<std::string>
     argv[args.size()] = nullptr;
 #ifdef WIN32
     if (auto i = _execv(path.c_str(), argv); i < 0) {
-        setLastError();
-        return i;
+        return setLastError();
     }
 #else   // Unix
     if (auto i = execv(path.c_str(), argv); i < 0) {
-        setLastError();
-        return i;
+        return setLastError();
     }
 #endif  // WIN32
 
-    return 0;
+    return errorString;
 }
 
-int util::forkAndExec(const std::filesystem::path &path, const std::vector<std::string> &args) {
+util::forkResult util::forkAndExec(const std::filesystem::path &path,
+                                   const std::vector<std::string> &args) {
+    forkResult result = {"", false};
 #ifdef WIN32
     STARTUPINFO info = {sizeof(info)};
     PROCESS_INFORMATION processInfo;
@@ -100,21 +104,22 @@ int util::forkAndExec(const std::filesystem::path &path, const std::vector<std::
     if (!CreateProcess(path.c_str(), argStr.c_str(), nullptr, nullptr, FALSE, 0, nullptr, nullptr,
                        &info, &processInfo)) {
         setLastError();
-        return -1;
+        return forkResult{errorString, false};
     }
 #else   // Unix
     auto pid = fork();
     if (pid == 0) {
         // Child.
-        return util::exec(path, args);
+        auto msg = util::exec(path, args);
+        return forkResult{msg, true};
     } else if (pid < 0) {
         // Error.
         setLastError();
-        return static_cast<int>(pid);
+        return forkResult{errorString, false};
     }
     // Parent.
 #endif  // WIN32
-    return 0;
+    return result;
 }
 
 std::string util::getErrorString() {

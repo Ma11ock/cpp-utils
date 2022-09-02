@@ -84,9 +84,14 @@ inline char *strdup(const char *str) {
     return result;
 }
 
-int exec(const std::filesystem::path &path, const std::vector<std::string> &args);
+std::string exec(const std::filesystem::path &path, const std::vector<std::string> &args);
 
-int forkAndExec(const std::filesystem::path &path, const std::vector<std::string> &args);
+struct forkResult {
+    std::string errMsg;
+    bool isChildProc;
+};
+
+forkResult forkAndExec(const std::filesystem::path &path, const std::vector<std::string> &args);
 
 std::string getErrorString();
 
