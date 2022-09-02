@@ -6,8 +6,37 @@ extern "C" {
 }
 #endif  // WIN32
 
+#include <cerrno>
+#include <cstring>
+
 namespace fs = std::filesystem;
 using path = fs::path;
+
+static std::string errorString = "";
+
+static void setLastError() {
+#ifdef WIN32
+    auto errorId = GetLastError();
+    if (errId == 0) {
+        goto get_error_unix;
+    }
+
+    LPSTR messageBuffer = nullptr;
+
+    size_t size = FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        static_cast<LPSTR>(&messageBuffer), 0, nullptr);
+
+    errorString = std::string(messageBuffer, size);
+
+    LocalFree(messageBuffer);
+
+get_error_unix:
+#endif  // WIN32
+
+    errorString = std::strerror(errno);
+}
 
 path util::mkTmp(std::string_view prefix, std::string_view suffix) {
     // Try to make a random filepath 10 times. If it fails, throw.
@@ -46,8 +75,48 @@ int util::exec(const std::filesystem::path &path, const std::vector<std::string>
     }
     argv[args.size()] = nullptr;
 #ifdef WIN32
-    return _execv(path.c_str(), argv);
+    if (auto i = _execv(path.c_str(), argv); i < 0) {
+        setLastError();
+        return i;
+    }
 #else   // Unix
-    return execv(path.c_str(), argv);
+    if (auto i = execv(path.c_str(), argv); i < 0) {
+        setLastError();
+        return i;
+    }
 #endif  // WIN32
+
+    return 0;
+}
+
+int util::forkAndExec(const std::filesystem::path &path, const std::vector<std::string> &args) {
+#ifdef WIN32
+    STARTUPINFO info = {sizeof(info)};
+    PROCESS_INFORMATION processInfo;
+    std::string argStr;
+    for (const auto &arg : args) {
+        argStr += arg;
+    }
+    if (!CreateProcess(path.c_str(), argStr.c_str(), nullptr, nullptr, FALSE, 0, nullptr, nullptr,
+                       &info, &processInfo)) {
+        setLastError();
+        return -1;
+    }
+#else   // Unix
+    auto pid = fork();
+    if (pid == 0) {
+        // Child.
+        return util::exec(path, args);
+    } else if (pid < 0) {
+        // Error.
+        setLastError();
+        return static_cast<int>(pid);
+    }
+    // Parent.
+#endif  // WIN32
+    return 0;
+}
+
+std::string util::getErrorString() {
+    return errorString;
 }

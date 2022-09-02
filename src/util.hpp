@@ -86,6 +86,10 @@ inline char *strdup(const char *str) {
 
 int exec(const std::filesystem::path &path, const std::vector<std::string> &args);
 
+int forkAndExec(const std::filesystem::path &path, const std::vector<std::string> &args);
+
+std::string getErrorString();
+
 /// Helper compile time constants to find out if a type exists.
 template <typename T, typename = void>
 constexpr bool isDefined = false;
