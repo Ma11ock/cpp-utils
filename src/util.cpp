@@ -72,21 +72,36 @@ std::string util::randomAlNumString(std::size_t len) {
     return result;
 }
 
-std::string util::exec(const std::filesystem::path &path, const std::vector<std::string> &args) {
+std::string util::exec(const std::filesystem::path &path, const std::vector<std::string> &args,
+                       bool usePath) {
     char **argv = new char *[args.size() + 1];
     for (std::size_t i = 0; i < args.size(); i++) {
         argv[i] = const_cast<char *>(args[i].c_str());
     }
     argv[args.size()] = nullptr;
+    if (!usePath) {
 #ifdef WIN32
-    if (auto i = _execv(path.c_str(), argv); i < 0) {
-        return setLastError();
-    }
+
+        if (auto i = _execv(path.c_str(), argv); i < 0) {
+            return setLastError();
+        }
 #else   // Unix
-    if (auto i = execv(path.c_str(), argv); i < 0) {
-        return setLastError();
-    }
+        if (auto i = execv(path.c_str(), argv); i < 0) {
+            return setLastError();
+        }
 #endif  // WIN32
+    } else {
+#ifdef WIN32
+
+        if (auto i = _execvp(path.c_str(), argv); i < 0) {
+            return setLastError();
+        }
+#else   // Unix
+        if (auto i = execvp(path.c_str(), argv); i < 0) {
+            return setLastError();
+        }
+#endif  // WIN32
+    }
 
     return errorString;
 }

@@ -84,7 +84,8 @@ inline char *strdup(const char *str) {
     return result;
 }
 
-std::string exec(const std::filesystem::path &path, const std::vector<std::string> &args);
+std::string exec(const std::filesystem::path &path, const std::vector<std::string> &args,
+                 bool usePath = false);
 
 struct forkResult {
     std::string errMsg;
