@@ -1,5 +1,11 @@
 #include "util.hpp"
 
+#ifndef WIN32
+extern "C" {
+#    include <unistd.h>
+}
+#endif  // WIN32
+
 namespace fs = std::filesystem;
 using path = fs::path;
 
@@ -31,4 +37,17 @@ std::string util::randomAlNumString(std::size_t len) {
     }
 
     return result;
+}
+
+int util::exec(const std::filesystem::path &path, const std::vector<std::string> &args) {
+    const char **argv = new const char *[args.size() + 1];
+    for (std::size_t i = 0; i < args.size(); i++) {
+        argv[i] = args[i].c_str();
+    }
+    argv[args.size()] = nullptr;
+#ifdef WIN32
+    return _execv(path.c_str(), args.data());
+#else   // Unix
+    return execv(path.c_str(), args.data());
+#endif  // WIN32
 }

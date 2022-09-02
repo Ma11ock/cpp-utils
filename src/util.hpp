@@ -84,6 +84,8 @@ inline char *strdup(const char *str) {
     return result;
 }
 
+int exec(const std::filesystem::path &path, const std::vector<std::string> &args);
+
 /// Helper compile time constants to find out if a type exists.
 template <typename T, typename = void>
 constexpr bool isDefined = false;
